@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090d18">
+  <title>Transmisión 01 · Reconstrucción</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090d18;
+      --panel: rgba(17, 25, 43, .92);
+      --line: rgba(166, 188, 224, .20);
+      --text: #edf2ff;
+      --muted: #a9b5cc;
+      --accent: #a9a4ff;
+      --accent2: #82d6d0;
+      --bad: #ff9b9b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 26px 16px;
+      display: grid;
+      place-items: center;
+      color: var(--text);
+      background:
+        radial-gradient(ellipse at 50% 0%, rgba(91, 93, 166, .24), transparent 55%),
+        radial-gradient(ellipse at 100% 100%, rgba(51, 128, 132, .13), transparent 45%),
+        var(--bg);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .shell { width: min(100%, 570px); }
+    .topline {
+      display: flex; justify-content: space-between; align-items: center;
+      margin: 0 2px 13px; color: var(--muted); font-size: 11px;
+      letter-spacing: .17em; text-transform: uppercase;
+    }
+    .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent2); margin-right: 7px; box-shadow: 0 0 12px rgba(130,214,208,.8); }
+    .panel {
+      border: 1px solid var(--line); border-radius: 22px;
+      padding: clamp(21px, 5vw, 34px);
+      background: var(--panel); box-shadow: 0 24px 80px rgba(0,0,0,.38);
+      backdrop-filter: blur(12px);
+    }
+    .eyebrow { color: var(--accent2); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; margin: 0 0 10px; }
+    h1 { font-size: clamp(27px, 7vw, 38px); line-height: 1.1; margin: 0 0 12px; letter-spacing: -.035em; }
+    .intro { color: var(--muted); line-height: 1.65; margin: 0 0 24px; font-size: 14px; }
+    .clues { display: grid; gap: 9px; margin: 0 0 22px; }
+    .clue { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: center; padding: 11px 12px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.025); color: #dce5f8; font-size: 13px; line-height: 1.45; }
+    .number { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+    .label { margin: 0 0 10px; color: var(--muted); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+    .sequence { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 17px; }
+    .slot { min-height: 52px; border: 1px dashed rgba(166,188,224,.32); border-radius: 11px; display: grid; place-items: center; color: #7f8ba4; font-size: 11px; text-align: center; padding: 5px; }
+    .slot.filled { border-style: solid; border-color: rgba(169,164,255,.65); color: var(--text); background: rgba(169,164,255,.09); }
+    .choices { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
+    button {
+      appearance: none; border: 1px solid var(--line); border-radius: 12px;
+      min-height: 49px; padding: 12px; color: var(--text); background: rgba(255,255,255,.045);
+      font: inherit; font-size: 13px; font-weight: 650; letter-spacing: .04em;
+      cursor: pointer; transition: border-color .16s, background .16s, transform .16s;
+    }
+    button:focus-visible { outline: 2px solid var(--accent2); outline-offset: 3px; }
+    button:active { transform: scale(.98); }
+    .choices button:hover:not(:disabled) { border-color: var(--accent); background: rgba(169,164,255,.10); }
+    button:disabled { opacity: .45; cursor: default; }
+    .controls { display: flex; gap: 9px; margin-top: 12px; }
+    .secondary { flex: 1; color: var(--muted); font-weight: 500; }
+    .primary { flex: 1.3; border-color: transparent; color: #0b1020; background: linear-gradient(110deg, #b8b2ff, #8fe0d7); }
+    .message { min-height: 24px; margin: 14px 1px 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .message.error { color: var(--bad); }
+    .success { display: none; margin-top: 22px; padding: 19px; border: 1px solid rgba(130,214,208,.38); border-radius: 15px; background: rgba(130,214,208,.07); }
+    .success.show { display: block; animation: arrive .35s ease-out; }
+    .success h2 { margin: 0 0 8px; font-size: 20px; }
+    .success p { color: var(--muted); font-size: 13px; line-height: 1.6; margin: 0 0 13px; }
+    .video-link { display: inline-flex; text-decoration: none; align-items: center; justify-content: center; min-height: 46px; padding: 11px 16px; border-radius: 11px; background: linear-gradient(110deg, #b8b2ff, #8fe0d7); color: #0b1020; font-size: 13px; font-weight: 750; }
+    .waiting { color: #f0d9a0 !important; }
+    .footer { text-align: center; color: #69758c; font-size: 10px; letter-spacing: .13em; margin-top: 16px; text-transform: uppercase; }
+    @keyframes arrive { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+    @media (max-width: 360px) { .slot { font-size: 9px; } .clue { font-size: 12px; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="topline"><span><i class="dot"></i>Señal detectada</span><span>Archivo 01 / 02</span></div>
+    <section class="panel" aria-labelledby="title">
+      <p class="eyebrow">Primera prueba · Reconstrucción</p>
+      <h1 id="title">Reconstruye la secuencia</h1>
+      <p class="intro">La transmisión llegó fragmentada. Cuatro señales quedaron fuera de orden. Lee las pistas y selecciónalas en el orden correcto para restaurar el mensaje.</p>
+
+      <div class="clues" aria-label="Pistas">
+        <div class="clue"><span class="number">01</span><span>Aparece cuando llega la noche.</span></div>
+        <div class="clue"><span class="number">02</span><span>Cuenta el paso de los minutos.</span></div>
+        <div class="clue"><span class="number">03</span><span>Puede abrir lo que está cerrado.</span></div>
+        <div class="clue"><span class="number">04</span><span>Observa en silencio.</span></div>
+      </div>
+
+      <p class="label">Tu secuencia</p>
+      <div class="sequence" aria-live="polite">
+        <div class="slot" id="slot0">1 · Vacío</div>
+        <div class="slot" id="slot1">2 · Vacío</div>
+        <div class="slot" id="slot2">3 · Vacío</div>
+        <div class="slot" id="slot3">4 · Vacío</div>
+      </div>
+
+      <p class="label">Selecciona las señales</p>
+      <div class="choices" id="choices">
+        <button type="button" data-symbol="OJO">OJO</button>
+        <button type="button" data-symbol="LLAVE">LLAVE</button>
+        <button type="button" data-symbol="RELOJ">RELOJ</button>
+        <button type="button" data-symbol="LUNA">LUNA</button>
+      </div>
+      <div class="controls">
+        <button class="secondary" id="undo" type="button" disabled>Deshacer</button>
+        <button class="secondary" id="reset" type="button">Reiniciar</button>
+      </div>
+      <p class="message" id="message" role="status">La señal espera tu respuesta.</p>
+
+      <div class="success" id="success" aria-live="polite">
+        <h2>Señal restaurada.</h2>
+        <p>Has superado la primera prueba. La segunda transmisión está lista para continuar.</p>
+        <div id="videoArea"></div>
+      </div>
+    </section>
+    <div class="footer">Conexión establecida · No cierres la transmisión</div>
+  </main>
+
+  <script>
+    // Cuando tengas el enlace de MEGA del segundo video, pégalo entre las comillas.
+    // Ejemplo: const VIDEO_2_URL = "https://mega.nz/file/......";
+    const VIDEO_2_URL = "";
+
+    const answer = ["LUNA", "RELOJ", "LLAVE", "OJO"];
+    let selected = [];
+    const buttons = [...document.querySelectorAll("[data-symbol]")];
+    const message = document.getElementById("message");
+    const undoButton = document.getElementById("undo");
+    const success = document.getElementById("success");
+    const videoArea = document.getElementById("videoArea");
+
+    function render() {
+      for (let i = 0; i < 4; i++) {
+        const slot = document.getElementById(`slot${i}`);
+        slot.textContent = selected[i] || `${i + 1} · Vacío`;
+        slot.classList.toggle("filled", Boolean(selected[i]));
+      }
+      buttons.forEach(button => {
+        button.disabled = selected.includes(button.dataset.symbol) || selected.length === 4;
+      });
+      undoButton.disabled = selected.length === 0 || selected.length === 4;
+    }
+
+    function complete() {
+      success.classList.add("show");
+      if (VIDEO_2_URL.trim()) {
+        const link = document.createElement("a");
+        link.className = "video-link";
+        link.href = VIDEO_2_URL.trim();
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = "Abrir segunda transmisión";
+        videoArea.replaceChildren(link);
+      } else {
+        const note = document.createElement("p");
+        note.className = "waiting";
+        note.textContent = "La prueba está lista. Falta conectar aquí el enlace del segundo video.";
+        videoArea.replaceChildren(note);
+      }
+      message.textContent = "Correcto. Todas las señales están en su lugar.";
+      message.classList.remove("error");
+    }
+
+    buttons.forEach(button => {
+      button.addEventListener("click", () => {
+        if (selected.length >= 4) return;
+        selected.push(button.dataset.symbol);
+        const position = selected.length - 1;
+        if (selected[position] !== answer[position]) {
+          message.textContent = "Esa señal no corresponde a esta posición. Inténtalo de nuevo.";
+          message.classList.add("error");
+          selected = [];
+          success.classList.remove("show");
+          videoArea.replaceChildren();
+          render();
+          return;
+        }
+        message.textContent = selected.length === 4 ? "Secuencia completa." : "Bien. La señal empieza a estabilizarse.";
+        message.classList.remove("error");
+        render();
+        if (selected.length === 4) complete();
+      });
+    });
+
+    undoButton.addEventListener("click", () => {
+      selected.pop();
+      message.textContent = "Última selección retirada.";
+      message.classList.remove("error");
+      render();
+    });
+
+    document.getElementById("reset").addEventListener("click", () => {
+      selected = [];
+      success.classList.remove("show");
+      videoArea.replaceChildren();
+      message.textContent = "La señal espera tu respuesta.";
+      message.classList.remove("error");
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>
